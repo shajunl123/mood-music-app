@@ -288,7 +288,7 @@
                 // IMPORTANT: Insert your personal API key here
                 // Get your key from: https://aistudio.google.com/app/apikey
                 // And remember to NEVER publish it to a public GitHub repository.
-                const apiKey = "";
+                const apiKey = process.env.API_KEY;
                 
                 const apiUrlWithKey = `${API_URL}${apiKey}`;
 
