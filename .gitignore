@@ -1,2 +1,6 @@
-api/
-.vercel
+# Ignore files created by macOS
+.DS_Store
+
+# Ignore files that contain private API keys or sensitive information
+*.env
+.env.local
