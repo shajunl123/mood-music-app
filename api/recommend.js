@@ -30,7 +30,7 @@ export default async function handler(request) {
     const currentDailyCount = await kv.get(dailyKey) || 0;
 
     if (currentDailyCount >= MAX_DAILY_REQUESTS) {
-      return new Response("Maximum daily limit has been reached.", { status: 429 });
+      return new Response("Maximum daily limit has been reached. Please try again tomorrow.", { status: 429 });
     }
 
     // --- Per-User Rate Limiting Logic ---
@@ -43,7 +43,7 @@ export default async function handler(request) {
     ]);
     
     if (count > MAX_REQUESTS_PER_WINDOW) {
-      return new Response("Too many requests. Please try again in a minute.", { status: 429 });
+      return new Response("Per-minute limit reached. Please wait a moment.", { status: 429 });
     }
     // --- End Rate Limiting Logic ---
 

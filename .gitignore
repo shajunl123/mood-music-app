@@ -4,3 +4,4 @@
 # Ignore files that contain private API keys or sensitive information
 *.env
 .env.local
+.env*.local
