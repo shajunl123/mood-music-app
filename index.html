@@ -117,7 +117,7 @@ body { font-family: 'Inter', sans-serif; }
                     <h3 class="text-xl font-semibold text-orange-700 mb-2">Painting Recommendation</h3>
                     <div class="space-y-2 text-gray-700">
                         <div class="flex justify-center mb-4">
-                            <img id="paintingImage" src="" alt="Recommended Painting" class="max-w-full max-h-96 rounded-lg shadow-md object-contain" style="display: none;">
+                            <img id="paintingImage" src="" alt="Recommended Painting" class="max-w-full max-h-96 rounded-lg shadow-md object-contain">
                         </div>
                         <div id="paintingInfo" class="p-3 bg-white rounded-lg border border-gray-200">
                             <strong class="text-lg">Painting:</strong> <span id="paintingName"></span>
@@ -142,134 +142,287 @@ body { font-family: 'Inter', sans-serif; }
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    const submitBtn = document.getElementById("submitBtn");
-    const note = document.getElementById("note");
-    const progressBar = document.getElementById("progressBar");
-    const container = document.getElementById("progressBarContainer");
-    const paintingImage = document.getElementById("paintingImage");
+    document.addEventListener('DOMContentLoaded', () => {
+        const userInput = document.getElementById("userInput");
+        const submitBtn = document.getElementById("submitBtn");
+        const loading = document.getElementById("loading");
+        const resultContainer = document.getElementById("resultContainer");
+        const resultHeading = document.getElementById("resultHeading");
+        const errorMessageDiv = document.getElementById("errorMessage");
 
-    const resultContainer = document.getElementById("resultContainer");
-    const loading = document.getElementById("loading");
+        const progressBarContainer = document.getElementById("progressBarContainer");
+        const note = document.getElementById("note");
+        const progressBar = document.getElementById("progressBar");
 
-    submitBtn.addEventListener("click", async () => {
-        const userInput = document.getElementById('userInput').value.trim();
-        
-        // Check if input is empty
-        if (!userInput) {
-            alert('Please enter your mood or situation first!');
-            return;
-        }
+        const workNameSpan = document.getElementById("workName");
+        const composerNameSpan = document.getElementById("composerName");
+        const movementsTextSpan = document.getElementById("movementsText");
+        const contextTextSpan = document.getElementById("contextText");
+        const musicLinkSpan = document.getElementById("musicLinkSpan");
 
-        resultContainer.classList.add('hidden');
-        document.getElementById('errorMessage').classList.add('hidden');
-        loading.classList.remove('hidden');
-        
-        // Reset note position and animations
-        note.style.left = '0px';
-        note.classList.remove('bounce-out');
-        note.classList.add('bouncing');
-        progressBar.style.width = '0px';
+        const paintingImage = document.getElementById("paintingImage");
+        const paintingNameSpan = document.getElementById("paintingName");
+        const artistNameSpan = document.getElementById("artistName");
+        const paintingLinkSpan = document.getElementById("paintingLinkSpan");
 
-        // Get dimensions for proper alignment
-        const containerWidth = container.offsetWidth;
-        
-        // Animate note and progress bar
-        let progress = 0;
-        const interval = setInterval(() => {
-            progress += 3;
-            if (progress > 100) progress = 100;
-
-            const notePosition = (progress / 100) * containerWidth;
-            note.style.left = `${notePosition}px`;
-            progressBar.style.width = `${notePosition}px`;
-
-            if (progress === 100) {
-                clearInterval(interval);
-                note.classList.remove('bouncing');
-                note.classList.add('bounce-out');
+        const moodsData = {
+            calm: {
+                music: {
+                    work: "Clair de lune",
+                    composer: "Claude Debussy",
+                    movements: "The piece is a single movement from a larger suite. It is known for its quiet, melodic, and serene nature.",
+                    historicalContext: "Composed in 1890, 'Clair de lune' is part of the 'Suite bergamasque.' It is a prime example of musical Impressionism, characterized by its focus on mood and atmosphere rather than structured forms. It evokes the soft, ethereal light of the moon.",
+                    link: "https://www.youtube.com/watch?v=Fh-L0sB4-58"
+                },
+                painting: {
+                    name: "Impression, Sunrise",
+                    artist: "Claude Monet",
+                    link: "https://en.wikipedia.org/wiki/Impression,_Sunrise",
+                    image: "https://upload.wikimedia.org/wikipedia/commons/5/59/Claude_Monet%2C_Impression%2C_soleil_levant%2C_1872.jpg"
+                }
+            },
+            romantic: {
+                music: {
+                    work: "Liebestraum No. 3",
+                    composer: "Franz Liszt",
+                    movements: "The piece is a solo piano nocturne, a single continuous movement.",
+                    historicalContext: "Originally composed as a song, this piano piece from 1850 is a quintessential Romantic work. Its title translates to 'Dream of Love,' and it's known for its passionate and highly expressive melody, showcasing Liszt's virtuosity at the piano.",
+                    link: "https://www.youtube.com/watch?v=KzE_t5iT3Qk"
+                },
+                painting: {
+                    name: "The Kiss",
+                    artist: "Gustav Klimt",
+                    link: "https://en.wikipedia.org/wiki/The_Kiss_(Klimt)",
+                    image: "https://upload.wikimedia.org/wikipedia/commons/4/40/The_Kiss_-_Gustav_Klimt_-_Google_Art_Project_2.jpg"
+                }
+            },
+            joyful: {
+                music: {
+                    work: "The Four Seasons - 'Spring'",
+                    composer: "Antonio Vivaldi",
+                    movements: "Composed of three movements: I. Allegro, II. Largo e pianissimo, III. Allegro pastorale.",
+                    historicalContext: "Part of a set of four violin concertos published in 1725, 'Spring' is a famous example of Baroque program music. Each movement is accompanied by a sonnet, which Vivaldi wrote to guide the listener's imagination through the sounds of birds, murmuring streams, and a pastoral dance.",
+                    link: "https://www.youtube.com/watch?v=N_8A25y0bXw"
+                },
+                painting: {
+                    name: "The Swing",
+                    artist: "Jean-Honoré Fragonard",
+                    link: "https://en.wikipedia.org/wiki/The_Swing_(Fragonard)",
+                    image: "https://upload.wikimedia.org/wikipedia/commons/e/ea/Fragonard%2C_The_Swing.jpg"
+                }
+            },
+            sad: {
+                music: {
+                    work: "Adagio for Strings",
+                    composer: "Samuel Barber",
+                    movements: "The piece is a single, slow movement.",
+                    historicalContext: "This piece, composed in 1936, is one of the most popular and recognizable works of 20th-century classical music. It is known for its profound sense of melancholy and emotional power, and has been used to commemorate moments of national grief and tragedy, such as the funerals of Franklin D. Roosevelt and John F. Kennedy.",
+                    link: "https://www.youtube.com/watch?v=Jm93cW2T9f8"
+                },
+                painting: {
+                    name: "The Old Guitarist",
+                    artist: "Pablo Picasso",
+                    link: "https://en.wikipedia.org/wiki/The_Old_Guitarist",
+                    image: "https://upload.wikimedia.org/wikipedia/en/2/26/Picasso_Old_Guitarist.jpg"
+                }
+            },
+            energetic: {
+                music: {
+                    work: "Symphony No. 5",
+                    composer: "Ludwig van Beethoven",
+                    movements: "The first movement is Allegro con brio.",
+                    historicalContext: "Composed between 1804 and 1808, Beethoven's Symphony No. 5 is one of the most famous works in the classical repertoire. Its iconic opening four-note motif has been interpreted as 'Fate knocking at the door' and symbolizes struggle and triumph. It stands as a powerful work of the Romantic era.",
+                    link: "https://www.youtube.com/watch?v=jv2WJM-L6-0"
+                },
+                painting: {
+                    name: "The Raft of the Medusa",
+                    artist: "Théodore Géricault",
+                    link: "https://en.wikipedia.org/wiki/The_Raft_of_the_Medusa",
+                    image: "https://upload.wikimedia.org/wikipedia/commons/1/1d/Th%C3%A9odore_G%C3%A9ricault_-_The_Raft_of_the_Medusa_-_Google_Art_Project.jpg"
+                }
+            },
+            epic: {
+                music: {
+                    work: "Carmina Burana",
+                    composer: "Carl Orff",
+                    movements: "A scenic cantata divided into five main parts, with the most famous being the opening and closing movement, 'O Fortuna.'",
+                    historicalContext: "Written in 1935–36, 'Carmina Burana' is based on 24 poems from a medieval collection. Its raw, powerful rhythms and dramatic choruses give it a grand and epic scale, often used in film and media to signify a monumental or climactic event.",
+                    link: "https://www.youtube.com/watch?v=Qx-q3GvH_90"
+                },
+                painting: {
+                    name: "Napoleon Crossing the Alps",
+                    artist: "Jacques-Louis David",
+                    link: "https://en.wikipedia.org/wiki/Napoleon_Crossing_the_Alps",
+                    image: "https://upload.wikimedia.org/wikipedia/commons/f/ff/Jacques-Louis_David_-_Napoleon_Crossing_the_Alps_-_Google_Art_Project_2.jpg"
+                }
+            },
+            meditative: {
+                music: {
+                    work: "Gymnopédie No. 1",
+                    composer: "Erik Satie",
+                    movements: "A short, distinct piano piece that stands on its own as a single movement.",
+                    historicalContext: "Composed in 1888, this piece is one of Satie's most famous works. It's known for its serene, minimalist style and gentle melodies, which were a stark contrast to the dramatic works of the Romantic period. It is often used to evoke a calm, introspective mood.",
+                    link: "https://www.youtube.com/watch?v=0kS-e2yF0cE"
+                },
+                painting: {
+                    name: "Wanderer Above the Sea of Fog",
+                    artist: "Caspar David Friedrich",
+                    link: "https://en.wikipedia.org/wiki/Wanderer_Above_the_Sea_of_Fog",
+                    image: "https://upload.wikimedia.org/wikipedia/commons/b/b9/Caspar_David_Friedrich_-_Wanderer_above_the_Sea_of_Fog.jpg"
+                }
+            },
+            dramatic: {
+                music: {
+                    work: "Ride of the Valkyries",
+                    composer: "Richard Wagner",
+                    movements: "An orchestral piece that serves as an interlude in the opera 'Die Walküre.'",
+                    historicalContext: "Part of Wagner's epic opera cycle 'Der Ring des Nibelungen,' composed from 1854 to 1856. 'Ride of the Valkyries' is famous for its powerful, dynamic sound and has become synonymous with dramatic, intense moments in popular culture.",
+                    link: "https://www.youtube.com/watch?v=XR480Qj5j5o"
+                },
+                painting: {
+                    name: "Saturn Devouring His Son",
+                    artist: "Francisco Goya",
+                    link: "https://en.wikipedia.org/wiki/Saturn_Devouring_His_Son",
+                    image: "https://upload.wikimedia.org/wikipedia/commons/8/87/Francisco_de_Goya%2C_Saturno_devorando_a_su_hijo_%281819-1823%29.jpg"
+                }
+            },
+            suspenseful: {
+                music: {
+                    work: "Dies Irae",
+                    composer: "Giuseppe Verdi",
+                    movements: "A powerful chorus movement from the 'Requiem' mass.",
+                    historicalContext: "Verdi’s 'Requiem' from 1874 is a dramatic and theatrical work often described as an opera in disguise. The 'Dies Irae' section, translating to 'Day of Wrath,' is a terrifying and intense musical depiction of the Last Judgment.",
+                    link: "https://www.youtube.com/watch?v=Zd-Fv5eC-7c"
+                },
+                painting: {
+                    name: "Judith Slaying Holofernes",
+                    artist: "Artemisia Gentileschi",
+                    link: "https://en.wikipedia.org/wiki/Judith_Slaying_Holofernes_(Artemisia_Gentileschi)",
+                    image: "https://upload.wikimedia.org/wikipedia/commons/e/e6/Artemisia_Gentileschi_-_Giuditta_che_decapita_Oloferne_-_Galleria_degli_Uffizi%2C_Florence.jpg"
+                }
+            },
+            peaceful: {
+                music: {
+                    work: "Canon in D",
+                    composer: "Johann Pachelbel",
+                    movements: "A single piece known for its simple, repetitive structure and calming melody.",
+                    historicalContext: "Composed around 1680, this piece is a masterpiece of the Baroque era. Its repetitive bass line and intertwining melodic lines create a sense of harmony and peace, making it a staple at weddings and for relaxation.",
+                    link: "https://www.youtube.com/watch?v=rNby4hK96aY"
+                },
+                painting: {
+                    name: "A Sunday on La Grande Jatte",
+                    artist: "Georges Seurat",
+                    link: "https://en.wikipedia.org/wiki/A_Sunday_on_La_Grande_Jatte",
+                    image: "https://upload.wikimedia.org/wikipedia/commons/7/7d/Georges_Seurat_-_A_Sunday_on_La_Grande_Jatte_--_1884_-_Google_Art_Project.jpg"
+                }
             }
-        }, 30);
-
-        try {
-            // Actually fetch from API - NO MORE DUMMY DATA!
-            console.log('Making API call with input:', userInput);
-
-            const response = await fetch('/api/recommend', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ mood: userInput })
-            });
-
-            console.log('Response status:', response.status);
+        };
+        
+        const getMoodKeyword = async (userPrompt) => {
+            const moodList = Object.keys(moodsData).join(", ");
+            const systemPrompt = `
+                You are a sentiment analyzer. Your sole purpose is to analyze the user's input and respond with a single keyword from the following list that best represents the overall mood or context: ${moodList}. If no mood from the list matches, respond with 'none'. Your response must be only a single word.
+            `;
             
-            const responseText = await response.text();
-            console.log('Raw response:', responseText);
+            let retryCount = 0;
+            const maxRetries = 3;
             
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${responseText}`);
+            while (retryCount < maxRetries) {
+                try {
+                    const response = await fetch('/api/recommend', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ mood: userPrompt, systemPrompt: systemPrompt, moodsData: moodsData })
+                    });
+    
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(`API response error: ${response.status} ${errorText}`);
+                    }
+    
+                    const result = await response.json();
+                    const keyword = result?.keyword?.trim().toLowerCase();
+                    
+                    return keyword;
+    
+                } catch (err) {
+                    if (retryCount >= maxRetries - 1) {
+                        throw err;
+                    }
+                    const delay = Math.pow(2, retryCount) * 1000;
+                    console.error(`Fetch error: ${err.message}. Retrying...`);
+                    await new Promise(res => setTimeout(res, delay));
+                    retryCount++;
+                }
             }
+        };
+
+        submitBtn.addEventListener("click", async () => {
+            const userText = userInput.value.trim();
             
-            let recommendation;
+            resultContainer.classList.add('hidden');
+            errorMessageDiv.classList.add('hidden');
+            
+            if (userText.length === 0) {
+                errorMessageDiv.innerText = "Please enter a descriptive phrase.";
+                errorMessageDiv.classList.remove('hidden');
+                return;
+            }
+
+            loading.classList.remove('hidden');
+            progressBarContainer.classList.remove('hidden');
+
+            const noteWidth = note.offsetWidth;
+            const containerWidth = progressBarContainer.offsetWidth;
+
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 5;
+                if (progress > 100) progress = 100;
+
+                const notePosition = (progress / 100) * containerWidth;
+                note.style.left = `${notePosition}px`;
+                progressBar.style.width = `${notePosition}px`;
+                
+                if (progress === 100) {
+                    clearInterval(interval);
+                }
+            }, 50);
+
             try {
-                recommendation = JSON.parse(responseText);
-                console.log('Parsed data:', recommendation);
-            } catch (e) {
-                throw new Error(`Invalid JSON response: ${responseText}`);
+                const moodKeyword = await getMoodKeyword(userText);
+                const recommendation = moodsData[moodKeyword];
+
+                loading.classList.add('hidden');
+                progressBarContainer.classList.add('hidden');
+
+                if (recommendation) {
+                    resultHeading.innerText = `Recommendation for "${userText}"`;
+                    workNameSpan.innerText = recommendation.music.work;
+                    composerNameSpan.innerText = recommendation.music.composer;
+                    movementsTextSpan.innerText = recommendation.music.movements;
+                    contextTextSpan.innerText = recommendation.music.historicalContext;
+                    musicLinkSpan.innerHTML = `<a href="${recommendation.music.link}" target="_blank" class="text-blue-500 hover:underline">View on Web</a>`;
+
+                    paintingImage.src = recommendation.painting.image;
+                    paintingImage.alt = recommendation.painting.name;
+                    paintingNameSpan.innerText = recommendation.painting.name;
+                    artistNameSpan.innerText = recommendation.painting.artist;
+                    paintingLinkSpan.innerHTML = `<a href="${recommendation.painting.link}" target="_blank" class="text-blue-500 hover:underline">View on Web</a>`;
+                    resultContainer.classList.remove('hidden');
+                    paintingImage.style.display = 'block';
+                } else {
+                    errorMessageDiv.innerText = "No recommendation found for that phrase. Please try a different mood or keyword.";
+                    errorMessageDiv.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Failed to get recommendation:', error);
+                loading.classList.add('hidden');
+                errorMessageDiv.innerText = "An error occurred while fetching a recommendation. Please try again.";
+                errorMessageDiv.classList.remove('hidden');
             }
-            
-            loading.classList.add('hidden');
-            resultContainer.classList.remove('hidden');
-
-            // Update the UI with real data from your API
-            document.getElementById('resultHeading').innerText = `Recommendation for: "${userInput}"`;
-            
-            // Music section
-            document.getElementById('workName').innerText = recommendation.music?.work || 'N/A';
-            document.getElementById('composerName').innerText = recommendation.music?.composer || 'N/A';
-            document.getElementById('movementsText').innerText = recommendation.music?.movements || 'N/A';
-            document.getElementById('contextText').innerText = recommendation.music?.historicalContext || 'N/A';
-            
-            const musicLink = recommendation.music?.link || '#';
-            document.getElementById('musicLinkSpan').innerHTML = `<a href="${musicLink}" target="_blank" class="text-blue-500 hover:underline">Listen</a>`;
-
-            // Painting section  
-            paintingImage.onload = function() {
-                this.style.display = 'block';
-            };
-            
-            paintingImage.onerror = function() {
-                this.style.display = 'none';
-                console.log('Painting image failed to load');
-            };
-            
-            if (recommendation.painting?.image) {
-                paintingImage.src = recommendation.painting.image;
-            } else {
-                paintingImage.style.display = 'none';
-            }
-            
-            document.getElementById('paintingName').innerText = recommendation.painting?.name || 'N/A';
-            document.getElementById('artistName').innerText = recommendation.painting?.artist || 'N/A';
-            
-            const paintingLink = recommendation.painting?.link || '#';
-            document.getElementById('paintingLinkSpan').innerHTML = `<a href="${paintingLink}" target="_blank" class="text-blue-500 hover:underline">View</a>`;
-
-        } catch (error) {
-            console.error('Complete error details:', error);
-            loading.classList.add('hidden');
-            
-            const errorMsg = document.getElementById('errorMessage');
-            errorMsg.textContent = `Error: ${error.message}`;
-            errorMsg.classList.remove('hidden');
-            
-            // Reset note position
-            note.style.left = '0px';
-            note.classList.remove('bouncing', 'bounce-out');
-            progressBar.style.width = '0px';
-        }
+        });
     });
-});
 </script>
 </body>
 </html>
