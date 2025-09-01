@@ -11,10 +11,20 @@ body { font-family: 'Inter', sans-serif; }
 
 /* Note bounce animation */
 @keyframes bounce {
-    0%, 100% { transform: translateY(0); }
-    25% { transform: translateY(-20px); }
-    50% { transform: translateY(-10px); }
-    75% { transform: translateY(-15px); }
+    0%, 100% { transform: translateY(0px); }
+    25% { transform: translateY(-8px); }
+    50% { transform: translateY(-4px); }
+    75% { transform: translateY(-6px); }
+}
+
+/* Bounce out animation */
+@keyframes bounceOut {
+    0% { transform: translateY(0px); }
+    20% { transform: translateY(-15px); }
+    40% { transform: translateY(-8px); }
+    60% { transform: translateY(-12px); }
+    80% { transform: translateY(-5px); }
+    100% { transform: translateY(-20px) translateX(50px); opacity: 0; }
 }
 
 /* Staff styling */
@@ -31,6 +41,14 @@ body { font-family: 'Inter', sans-serif; }
         transparent 2px,
         transparent 10px
     );
+}
+
+.bouncing {
+    animation: bounce 0.6s ease-in-out infinite;
+}
+
+.bounce-out {
+    animation: bounceOut 1s ease-in-out forwards;
 }
 </style>
 </head>
@@ -98,7 +116,9 @@ body { font-family: 'Inter', sans-serif; }
                 <div class="p-4 bg-orange-50 rounded-lg border border-orange-200">
                     <h3 class="text-xl font-semibold text-orange-700 mb-2">Painting Recommendation</h3>
                     <div class="space-y-2 text-gray-700">
-                        <img id="paintingImage" src="" alt="Recommended Painting" class="max-w-full max-h-96 mx-auto rounded-lg shadow-md mb-2 object-contain">
+                        <div class="flex justify-center mb-4">
+                            <img id="paintingImage" src="" alt="Recommended Painting" class="max-w-full max-h-96 rounded-lg shadow-md object-contain" style="display: none;">
+                        </div>
                         <div id="paintingInfo" class="p-3 bg-white rounded-lg border border-gray-200">
                             <strong class="text-lg">Painting:</strong> <span id="paintingName"></span>
                         </div>
@@ -127,56 +147,127 @@ document.addEventListener('DOMContentLoaded', () => {
     const note = document.getElementById("note");
     const progressBar = document.getElementById("progressBar");
     const container = document.getElementById("progressBarContainer");
+    const paintingImage = document.getElementById("paintingImage");
 
     const resultContainer = document.getElementById("resultContainer");
     const loading = document.getElementById("loading");
 
-    // Dummy data for demo
-    const moodsData = {
-        calm: {
-            music: { work: "Clair de lune", composer: "Debussy", movements: "Single movement", historicalContext: "Impressionism", link: "#" },
-            painting: { name: "Impression, Sunrise", artist: "Claude Monet", image: "https://upload.wikimedia.org/wikipedia/commons/5/59/Claude_Monet%2C_Impression%2C_soleil_levant%2C_1872.jpg", link: "#" }
+    submitBtn.addEventListener("click", async () => {
+        const userInput = document.getElementById('userInput').value.trim();
+        
+        // Check if input is empty
+        if (!userInput) {
+            alert('Please enter your mood or situation first!');
+            return;
         }
-    };
 
-    submitBtn.addEventListener("click", () => {
         resultContainer.classList.add('hidden');
+        document.getElementById('errorMessage').classList.add('hidden');
         loading.classList.remove('hidden');
+        
+        // Reset note position and animations
+        note.style.left = '0px';
+        note.classList.remove('bounce-out');
+        note.classList.add('bouncing');
+        progressBar.style.width = '0px';
 
-        const noteWidth = note.offsetWidth;
+        // Get dimensions for proper alignment
         const containerWidth = container.offsetWidth;
-
-        // Animate note
+        
+        // Animate note and progress bar
         let progress = 0;
         const interval = setInterval(() => {
-            progress += 5;
+            progress += 3;
             if (progress > 100) progress = 100;
 
-            const maxLeft = containerWidth - noteWidth;
-            note.style.left = `${Math.min(progress/100 * containerWidth, maxLeft)}px`;
-            progressBar.style.width = `${Math.min(progress/100 * containerWidth, maxLeft) + noteWidth}px`;
+            const notePosition = (progress / 100) * containerWidth;
+            note.style.left = `${notePosition}px`;
+            progressBar.style.width = `${notePosition}px`;
 
-            if (progress === 100) clearInterval(interval);
-        }, 50);
+            if (progress === 100) {
+                clearInterval(interval);
+                note.classList.remove('bouncing');
+                note.classList.add('bounce-out');
+            }
+        }, 30);
 
-        // Simulate fetching recommendation
-        setTimeout(() => {
+        try {
+            // Actually fetch from API - NO MORE DUMMY DATA!
+            console.log('Making API call with input:', userInput);
+
+            const response = await fetch('/api/recommend', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mood: userInput })
+            });
+
+            console.log('Response status:', response.status);
+            
+            const responseText = await response.text();
+            console.log('Raw response:', responseText);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${responseText}`);
+            }
+            
+            let recommendation;
+            try {
+                recommendation = JSON.parse(responseText);
+                console.log('Parsed data:', recommendation);
+            } catch (e) {
+                throw new Error(`Invalid JSON response: ${responseText}`);
+            }
+            
             loading.classList.add('hidden');
             resultContainer.classList.remove('hidden');
 
-            const recommendation = moodsData['calm'];
-            document.getElementById('resultHeading').innerText = 'Recommendation for calm mood';
-            document.getElementById('workName').innerText = recommendation.music.work;
-            document.getElementById('composerName').innerText = recommendation.music.composer;
-            document.getElementById('movementsText').innerText = recommendation.music.movements;
-            document.getElementById('contextText').innerText = recommendation.music.historicalContext;
-            document.getElementById('musicLinkSpan').innerHTML = `<a href="${recommendation.music.link}" target="_blank" class="text-blue-500 hover:underline">View</a>`;
+            // Update the UI with real data from your API
+            document.getElementById('resultHeading').innerText = `Recommendation for: "${userInput}"`;
+            
+            // Music section
+            document.getElementById('workName').innerText = recommendation.music?.work || 'N/A';
+            document.getElementById('composerName').innerText = recommendation.music?.composer || 'N/A';
+            document.getElementById('movementsText').innerText = recommendation.music?.movements || 'N/A';
+            document.getElementById('contextText').innerText = recommendation.music?.historicalContext || 'N/A';
+            
+            const musicLink = recommendation.music?.link || '#';
+            document.getElementById('musicLinkSpan').innerHTML = `<a href="${musicLink}" target="_blank" class="text-blue-500 hover:underline">Listen</a>`;
 
-            document.getElementById('paintingImage').src = recommendation.painting.image;
-            document.getElementById('paintingName').innerText = recommendation.painting.name;
-            document.getElementById('artistName').innerText = recommendation.painting.artist;
-            document.getElementById('paintingLinkSpan').innerHTML = `<a href="${recommendation.painting.link}" target="_blank" class="text-blue-500 hover:underline">View</a>`;
-        }, 2000);
+            // Painting section  
+            paintingImage.onload = function() {
+                this.style.display = 'block';
+            };
+            
+            paintingImage.onerror = function() {
+                this.style.display = 'none';
+                console.log('Painting image failed to load');
+            };
+            
+            if (recommendation.painting?.image) {
+                paintingImage.src = recommendation.painting.image;
+            } else {
+                paintingImage.style.display = 'none';
+            }
+            
+            document.getElementById('paintingName').innerText = recommendation.painting?.name || 'N/A';
+            document.getElementById('artistName').innerText = recommendation.painting?.artist || 'N/A';
+            
+            const paintingLink = recommendation.painting?.link || '#';
+            document.getElementById('paintingLinkSpan').innerHTML = `<a href="${paintingLink}" target="_blank" class="text-blue-500 hover:underline">View</a>`;
+
+        } catch (error) {
+            console.error('Complete error details:', error);
+            loading.classList.add('hidden');
+            
+            const errorMsg = document.getElementById('errorMessage');
+            errorMsg.textContent = `Error: ${error.message}`;
+            errorMsg.classList.remove('hidden');
+            
+            // Reset note position
+            note.style.left = '0px';
+            note.classList.remove('bouncing', 'bounce-out');
+            progressBar.style.width = '0px';
+        }
     });
 });
 </script>
