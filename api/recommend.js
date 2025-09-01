@@ -1,5 +1,3 @@
-import { kv } from '@vercel/kv';
-
 export const config = {
   runtime: 'edge',
 };
@@ -7,45 +5,10 @@ export const config = {
 const MODEL_NAME = "gemini-2.5-flash-preview-05-20";
 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=`;
 
-// Global daily limit configuration
-const DAILY_LIMIT_KEY = "daily_recommendation_count";
-const MAX_DAILY_REQUESTS = 100; // Total calls allowed per day
-
-// Per-user rate limiting configuration
-const PER_USER_KEY_PREFIX = "rate_limit:";
-const RATE_LIMIT_WINDOW_SECONDS = 60; // 60 seconds
-const MAX_REQUESTS_PER_WINDOW = 5;    // 5 requests per minute
-
 export default async function handler(request) {
   try {
     const { mood } = await request.json();
     const apiKey = process.env.API_KEY;
-
-    // --- Global Daily Limit Logic ---
-    const now = Date.now();
-    const today = new Date(now).toISOString().split('T')[0];
-    const dailyKey = `${DAILY_LIMIT_KEY}:${today}`;
-    
-    // Get the current daily count from Vercel KV
-    const currentDailyCount = await kv.get(dailyKey) || 0;
-
-    if (currentDailyCount >= MAX_DAILY_REQUESTS) {
-      return new Response("Maximum daily limit has been reached. Please try again tomorrow.", { status: 429 });
-    }
-
-    // --- Per-User Rate Limiting Logic ---
-    const ip = request.headers.get('x-real-ip') || request.headers.get('x-forwarded-for') || 'anonymous';
-    const userKey = `${PER_USER_KEY_PREFIX}:${ip}`;
-    
-    const [count, _] = await Promise.all([
-      kv.incr(userKey),
-      kv.expire(userKey, RATE_LIMIT_WINDOW_SECONDS)
-    ]);
-    
-    if (count > MAX_REQUESTS_PER_WINDOW) {
-      return new Response("Per-minute limit reached. Please wait a moment.", { status: 429 });
-    }
-    // --- End Rate Limiting Logic ---
 
     if (!apiKey) {
       return new Response("API key not configured.", { status: 500 });
@@ -89,12 +52,6 @@ export default async function handler(request) {
 
     const result = await response.json();
     const keyword = result?.candidates?.[0]?.content?.parts?.[0]?.text?.trim().toLowerCase();
-
-    // Increment the daily count only on a successful API call
-    if (keyword) {
-      await kv.incr(dailyKey);
-      await kv.expire(dailyKey, 86400); // Set expiration to 24 hours (86400 seconds)
-    }
 
     return new Response(JSON.stringify({ keyword }), {
       headers: { 'Content-Type': 'application/json' },
