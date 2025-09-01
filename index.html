@@ -317,49 +317,73 @@ body { font-family: 'Inter', sans-serif; }
                 }
             }
         };
-        
+
         const getMoodKeyword = async (userPrompt) => {
-            const moodList = Object.keys(moodsData).join(", ");
-            const systemPrompt = `
-                You are a sentiment analyzer. Your sole purpose is to analyze the user's input and respond with a single keyword from the following list that best represents the overall mood or context: ${moodList}. If no mood from the list matches, respond with 'none'. Your response must be only a single word.
-            `;
-            
-            let retryCount = 0;
-            const maxRetries = 3;
-            
-            while (retryCount < maxRetries) {
-                try {
-                    const response = await fetch('/api/recommend', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ mood: userPrompt, systemPrompt: systemPrompt, moodsData: moodsData })
-                    });
-    
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        throw new Error(`API response error: ${response.status} ${errorText}`);
-                    }
-    
-                    const result = await response.json();
-                    const keyword = result?.keyword?.trim().toLowerCase();
-                    
-                    return keyword;
-    
-                } catch (err) {
-                    if (retryCount >= maxRetries - 1) {
-                        throw err;
-                    }
-                    const delay = Math.pow(2, retryCount) * 1000;
-                    console.error(`Fetch error: ${err.message}. Retrying...`);
-                    await new Promise(res => setTimeout(res, delay));
-                    retryCount++;
-                }
+            const response = await fetch('/api/recommend', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mood: userPrompt })
+            });
+
+            if (response.status === 429) {
+                const errorMessage = await response.text();
+                throw new Error(errorMessage);
             }
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`API response error: ${response.status} ${errorText}`);
+            }
+
+            const result = await response.json();
+            const keyword = result?.keyword?.trim().toLowerCase();
+
+            return keyword;
+        };
+
+        const updateUIWithRecommendation = (userText, recommendation) => {
+            resultHeading.innerText = `Recommendation for "${userText}"`;
+            
+            // Music section
+            workNameSpan.innerText = recommendation.music.work;
+            composerNameSpan.innerText = recommendation.music.composer;
+            movementsTextSpan.innerText = recommendation.music.movements;
+            contextTextSpan.innerText = recommendation.music.historicalContext;
+            musicLinkSpan.innerHTML = `<a href="${recommendation.music.link}" target="_blank" class="text-blue-500 hover:underline">View on Web</a>`;
+
+            // Painting section
+            paintingImage.src = recommendation.painting.image;
+            paintingImage.alt = recommendation.painting.name;
+            paintingNameSpan.innerText = recommendation.painting.name;
+            artistNameSpan.innerText = recommendation.painting.artist;
+            paintingLinkSpan.innerHTML = `<a href="${recommendation.painting.link}" target="_blank" class="text-blue-500 hover:underline">View on Web</a>`;
+
+            // Reset image display on load
+            paintingImage.onload = () => paintingImage.style.display = 'block';
+            paintingImage.onerror = () => paintingImage.style.display = 'none';
+
+            resultContainer.classList.remove('hidden');
+        };
+
+        const showLoading = () => {
+            loading.classList.remove('hidden');
+            progressBarContainer.classList.remove('hidden');
+            note.style.left = '0px';
+            note.classList.remove('bounce-out');
+            note.classList.add('bouncing');
+            progressBar.style.width = '0px';
+        };
+
+        const hideLoading = () => {
+            loading.classList.add('hidden');
+            progressBarContainer.classList.add('hidden');
+            note.classList.remove('bouncing');
+            note.classList.add('bounce-out');
         };
 
         submitBtn.addEventListener("click", async () => {
             const userText = userInput.value.trim();
-            
+
             resultContainer.classList.add('hidden');
             errorMessageDiv.classList.add('hidden');
             
@@ -369,15 +393,14 @@ body { font-family: 'Inter', sans-serif; }
                 return;
             }
 
-            loading.classList.remove('hidden');
-            progressBarContainer.classList.remove('hidden');
+            showLoading();
 
             const noteWidth = note.offsetWidth;
             const containerWidth = progressBarContainer.offsetWidth;
-
             let progress = 0;
+
             const interval = setInterval(() => {
-                progress += 5;
+                progress += 3;
                 if (progress > 100) progress = 100;
 
                 const notePosition = (progress / 100) * containerWidth;
@@ -392,34 +415,24 @@ body { font-family: 'Inter', sans-serif; }
             try {
                 const moodKeyword = await getMoodKeyword(userText);
                 const recommendation = moodsData[moodKeyword];
-
-                loading.classList.add('hidden');
-                progressBarContainer.classList.add('hidden');
-
+                
                 if (recommendation) {
-                    resultHeading.innerText = `Recommendation for "${userText}"`;
-                    workNameSpan.innerText = recommendation.music.work;
-                    composerNameSpan.innerText = recommendation.music.composer;
-                    movementsTextSpan.innerText = recommendation.music.movements;
-                    contextTextSpan.innerText = recommendation.music.historicalContext;
-                    musicLinkSpan.innerHTML = `<a href="${recommendation.music.link}" target="_blank" class="text-blue-500 hover:underline">View on Web</a>`;
-
-                    paintingImage.src = recommendation.painting.image;
-                    paintingImage.alt = recommendation.painting.name;
-                    paintingNameSpan.innerText = recommendation.painting.name;
-                    artistNameSpan.innerText = recommendation.painting.artist;
-                    paintingLinkSpan.innerHTML = `<a href="${recommendation.painting.link}" target="_blank" class="text-blue-500 hover:underline">View on Web</a>`;
-                    resultContainer.classList.remove('hidden');
-                    paintingImage.style.display = 'block';
+                    updateUIWithRecommendation(userText, recommendation);
                 } else {
                     errorMessageDiv.innerText = "No recommendation found for that phrase. Please try a different mood or keyword.";
                     errorMessageDiv.classList.remove('hidden');
                 }
             } catch (error) {
                 console.error('Failed to get recommendation:', error);
-                loading.classList.add('hidden');
-                errorMessageDiv.innerText = "An error occurred while fetching a recommendation. Please try again.";
+                errorMessageDiv.innerText = error.message.includes('API response error: 429') 
+                                           ? "Too many requests. Please try again in a minute." 
+                                           : error.message.includes('Maximum daily limit')
+                                           ? "Maximum daily limit has been reached. Please try again tomorrow."
+                                           : "An error occurred while fetching a recommendation. Please try again.";
                 errorMessageDiv.classList.remove('hidden');
+            } finally {
+                clearInterval(interval);
+                hideLoading();
             }
         });
     });
