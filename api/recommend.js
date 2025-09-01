@@ -5,10 +5,37 @@ export const config = {
 const MODEL_NAME = "gemini-2.5-flash-preview-05-20";
 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=`;
 
+// A simple in-memory store for rate limiting. 
+// Note: This will reset whenever the serverless function "wakes up" (cold start), but is sufficient for preventing basic abuse.
+const requestCounts = {};
+const RATE_LIMIT_WINDOW_MS = 60000; // 60 seconds
+const MAX_REQUESTS_PER_WINDOW = 5; // 5 requests per minute
+
 export default async function handler(request) {
   try {
     const { mood } = await request.json();
     const apiKey = process.env.API_KEY;
+
+    // --- Rate Limiting Logic ---
+    const ip = request.headers.get('x-real-ip') || request.headers.get('x-forwarded-for') || 'anonymous';
+    const now = Date.now();
+
+    if (!requestCounts[ip]) {
+      requestCounts[ip] = { count: 0, lastRequest: now };
+    }
+
+    // Reset count if the window has passed
+    if (now - requestCounts[ip].lastRequest > RATE_LIMIT_WINDOW_MS) {
+      requestCounts[ip].count = 0;
+      requestCounts[ip].lastRequest = now;
+    }
+
+    requestCounts[ip].count++;
+
+    if (requestCounts[ip].count > MAX_REQUESTS_PER_WINDOW) {
+      return new Response("Too many requests. Please try again in a minute.", { status: 429 });
+    }
+    // --- End Rate Limiting Logic ---
 
     if (!apiKey) {
       return new Response("API key not configured.", { status: 500 });
